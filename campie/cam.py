@@ -173,6 +173,8 @@ def acam_match(
     variant, op, result_dtype = CamVariant.ACAM, CamOp.MATCH, np.int8
     validate_args(variant, op, inputs, cam)
     kernel = generate_kernel(variant, op, inputs.dtype, cam.dtype, result_dtype)
+    if noise is not None:
+        cam = add_noise(cam, noise)
     return run_kernel(kernel, variant, op, inputs, cam, result_dtype)
 
 
