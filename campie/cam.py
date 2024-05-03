@@ -262,3 +262,127 @@ def acam_reduce_sum(
     if noise is not None:
         cam = add_noise(cam, noise)
     return run_kernel(kernel, variant, op, inputs, cam, result_dtype, values)
+
+
+def acam_double_match(
+    inputs: NDArray[TN], cam: NDArray[TN], *, noise: Optional[float] = None
+) -> NDArray[np.int8]:
+    """
+    Performs the matching operation of a ACAM (Analog CAM) with double precision on a given set of inputs and
+    ACAMs.
+
+    ### Positional Arguments:
+    - `inputs` (`numpy.ndarray` or `cupy.ndarray`): The input columns stacked in rows.
+      The two innermost dimensions of `inputs` are of shape `input_rows x columns`.
+    - `cam` (`numpy.ndarray` or `cupy.ndarray`): The ACAM matrix itself.
+      The lower and upper thresholds are encoded side-by-side within the column.
+      This means that your CAM columns should be twice as wide as your input columns.
+      "Don't Care" (or "X") thresholds are encoded as `numpy.nan` values when using
+      float types and as negative integers when using integer types.
+      The two innermost dimensions of `cam` are of shape `cam_rows x (columns * 2)`.
+
+    ### Keyword Arguments:
+    - `noise` (`float` [optional]): Standard deviation for a normal distribution
+      `N(0, noise)` that is randomly sampled from and added to the ACAM thresholds
+      to simulate analog inaccuracies before performing the operation. Noise is only
+      added if this argument is defined.
+
+    ### Returns:
+    `cupy.ndarray`: The resulting matrix of matches encoded as `np.int8`s.
+    The two innermost dimensions are of shape `input_rows x cam_rows`.
+
+    ### Notes:
+    - The arguments for ACAM operations must contain floating point data types.
+    """
+    variant, op, result_dtype = CamVariant.ACAM_DOUBLE, CamOp.MATCH, np.int8
+    validate_args(variant, op, inputs, cam)
+    kernel = generate_kernel(variant, op, inputs.dtype, cam.dtype, result_dtype)
+    if noise is not None:
+        cam = add_noise(cam, noise)
+    return run_kernel(kernel, variant, op, inputs, cam, result_dtype)
+
+
+def acam_double_count_mismatches(
+    inputs: NDArray[TN], cam: NDArray[TN], *, noise: Optional[float] = None
+) -> NDArray[np.int64]:
+    """
+    Determines the number of mismatches per row in a ACAM (Analog CAM) matching
+    operation for a given set of inputs and ACAMs.
+
+    ### Positional Arguments:
+    - `inputs` (`numpy.ndarray` or `cupy.ndarray`): The input columns stacked in rows.
+      The two innermost dimensions of `inputs` are of shape `input_rows x columns`.
+    - `cam` (`numpy.ndarray` or `cupy.ndarray`): The ACAM matrix itself.
+      The lower and upper thresholds are encoded side-by-side within the column.
+      This means that your CAM columns should be twice as wide as your input columns.
+      "Don't Care" (or "X") thresholds are encoded as `numpy.nan` values when using
+      float types and as negative integers when using integer types.
+      The two innermost dimensions of `cam` are of shape `cam_rows x (columns * 2)`.
+
+    ### Keyword Arguments:
+    - `noise` (`float` [optional]): Standard deviation for a normal distribution
+      `N(0, noise)` that is randomly sampled from and added to the ACAM thresholds
+      to simulate analog inaccuracies before performing the operation. Noise is only
+      added if this argument is defined.
+
+    ### Returns:
+    `cupy.ndarray`: The resulting matrix of mismatch counts encoded as `np.int64`s.
+    The two innermost dimensions are of shape `input_rows x cam_rows`.
+
+    ### Notes:
+    - The arguments for ACAM operations must contain floating point data types.
+    """
+    variant, op, result_dtype = CamVariant.ACAM_DOUBLE, CamOp.COUNT_MISMATCHES, np.int64
+    validate_args(variant, op, inputs, cam)
+    kernel = generate_kernel(variant, op, inputs.dtype, cam.dtype, result_dtype)
+    if noise is not None:
+        cam = add_noise(cam, noise)
+    return run_kernel(kernel, variant, op, inputs, cam, result_dtype)
+
+
+def acam_double_reduce_sum(
+    inputs: NDArray[TN],
+    cam: NDArray[TN],
+    *,
+    values: NDArray[UF],
+    noise: Optional[float] = None,
+) -> NDArray[UF]:
+    """
+    First performs the matching operation of a ACAM (Analog CAM) on a given set
+    of inputs and ACAMs, then reduces each row of inputs down to a single number
+    by accumulating over a set of values for every matched row.
+
+    Note that reduction operations do not support broadcasting.
+
+    ### Positional Arguments:
+    - `inputs` (`numpy.ndarray` or `cupy.ndarray`): The input columns stacked in rows.
+      The two innermost dimensions of `inputs` are of shape `input_rows x columns`.
+    - `cam` (`numpy.ndarray` or `cupy.ndarray`): The ACAM matrix itself.
+      The lower and upper thresholds are encoded side-by-side within the column.
+      This means that your CAM columns should be twice as wide as your input columns.
+      "Don't Care" (or "X") thresholds are encoded as `numpy.nan` values when using
+      float types and as negative integers when using integer types.
+      The two innermost dimensions of `cam` are of shape `cam_rows x (columns * 2)`.
+
+    ### Keyword Arguments:
+    - `values` (`numpy.ndarray` or `cupy.ndarray`): The values to reduce.
+      The dimensions of `values` must be the same as the dimensions of `cam`,
+      except for the omission of the `columns` dimension.
+    - `noise` (`float` [optional]): Standard deviation for a normal distribution
+      `N(0, noise)` that is randomly sampled from and added to the ACAM thresholds
+      to simulate analog inaccuracies before performing the operation. Noise is only
+      added if this argument is defined.
+
+    ### Returns:
+    `cupy.ndarray`: The reduction result matrix.
+    The innermost dimension is `input_rows`.
+
+    ### Notes:
+    - The arguments for ACAM operations must contain floating point data types.
+    """
+    variant, op, result_dtype = CamVariant.ACAM_DOUBLE, CamOp.REDUCE_SUM, values.dtype
+    validate_args(variant, op, inputs, cam, values)
+    kernel = generate_kernel(variant, op, inputs.dtype, cam.dtype, result_dtype)
+    if noise is not None:
+        cam = add_noise(cam, noise)
+    return run_kernel(kernel, variant, op, inputs, cam, result_dtype, values)

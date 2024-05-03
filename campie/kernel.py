@@ -131,6 +131,49 @@ ACAM_INT_MATCHING = Template(
 """
 )
 
+ACAM_DOUBLE_FLOAT_MATCHING = Template(
+    r"""
+        $cam_type LSB_LO = cam[4 * (cam_row_index * columns + i)];
+        $cam_type LSB_HI = cam[4 * (cam_row_index * columns + i) + 1];
+        $cam_type MSB_LO = cam[4 * (cam_row_index * columns + i) + 2];
+        $cam_type MSB_HI = cam[4 * (cam_row_index * columns + i) + 3];
+        $inputs_type input_LSB = inputs[2*(input_row_index * columns + i)];
+        $inputs_type input_MSB = inputs[2*(input_row_index * columns + i) + 1];
+
+        /* nan = don't care */
+        if (!(
+            (isnan(MSB_LOW) || isnan(LSB_LOW) || (MSB_LOW +1) <= input_MSB) || (LSB_LOW) <= input_LSB) &&
+            (isnan(MSB_LOW) || MSB_LOW) <= input_MSB) &&
+            (isnan(MSB_HIGH) || isnan(LSB_HIGH) || input_MSB < MSB_HIGH) || input_LSB < LSB_HIGH) &&
+            (isnan(MSB_HIGH) || input_MSB < (MSB_HIGH+1)) &&            
+            (isnan(max_threshold) || input_value < max_threshold)
+        )) {
+            $on_mismatch
+        }
+"""
+)
+
+ACAM_DOUBLE_INT_MATCHING = Template(
+    r"""
+        $cam_type LSB_LO = cam[4 * (cam_row_index * columns + i)];
+        $cam_type LSB_HI = cam[4 * (cam_row_index * columns + i) + 1];
+        $cam_type MSB_LO = cam[4 * (cam_row_index * columns + i) + 2];
+        $cam_type MSB_HI = cam[4 * (cam_row_index * columns + i) + 3];
+        $inputs_type input_LSB = inputs[2*(input_row_index * columns + i)];
+        $inputs_type input_MSB = inputs[2*(input_row_index * columns + i) + 1];
+
+        /* nan = don't care */
+        if (!(
+            (isnan(MSB_LOW) || isnan(LSB_LOW) || (MSB_LOW +1) <= input_MSB) || (LSB_LOW) <= input_LSB) &&
+            (isnan(MSB_LOW) || MSB_LOW) <= input_MSB) &&
+            (isnan(MSB_HIGH) || isnan(LSB_HIGH) || input_MSB < MSB_HIGH) || input_LSB < LSB_HIGH) &&
+            (isnan(MSB_HIGH) || input_MSB < (MSB_HIGH+1)) &&            
+            (isnan(max_threshold) || input_value < max_threshold)
+        )) {
+            $on_mismatch
+        }
+"""
+)
 
 def generate_kernel(
     variant: CamVariant,
@@ -150,6 +193,8 @@ def generate_kernel(
         (CamVariant.TCAM, False): TCAM_INT_MATCHING,
         (CamVariant.ACAM, True): ACAM_FLOAT_MATCHING,
         (CamVariant.ACAM, False): ACAM_INT_MATCHING,
+        (CamVariant.ACAM_DOUBLE, True): ACAM_DOUBLE_FLOAT_MATCHING,
+        (CamVariant.ACAM_DOUBLE, False): ACAM_DOUBLE_INT_MATCHING,
     }
 
     matching = MATCHING_KINDS[(variant, is_float_type(cam_dtype))]

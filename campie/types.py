@@ -27,6 +27,9 @@ class CamVariant(Enum):
     ACAM = auto()
     """Analog CAM."""
 
+    ACAM_DOUBLE = auto()
+    """Analog CAM with double the bit width."""
+
     TCAM = auto()
     """Ternary CAM."""
 
